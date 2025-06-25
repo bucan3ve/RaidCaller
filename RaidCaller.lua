@@ -9,7 +9,6 @@ RaidCaller.addon = RC
 
 RC.debug = false
 
--- FIXED: Simplified the debug function to be more reliable.
 function RC:DebugPrint(message)
     if not self.debug then return end
     self:Print("|cff33ff99DEBUG:|r " .. tostring(message))
@@ -26,6 +25,7 @@ function RC:OnInitialize()
             isAutomatic = false,
             manualRaid = nil,
             manualBoss = nil,
+            sendAsWarning = false, -- ADDED: New setting for raid warnings
             minimap = {
                 hide = false,
             }
@@ -156,11 +156,16 @@ function RC:SayPhrase(index)
         return
     end
     
-    self:DebugPrint("Saying phrase " .. tostring(index) .. ": " .. tostring(phrases[index]))
+    -- MODIFIED: Check config for which channel to use
+    local channel = "RAID"
+    if self.Config:IsSendAsWarning() then
+        channel = "RAID_WARNING"
+    end
+    
+    self:DebugPrint("Saying phrase " .. tostring(index) .. " to channel " .. channel .. ": " .. tostring(phrases[index]))
 
-    -- FIXED: Corrected the typo from 'UnitlsGroupAssistant' to the correct 'UnitIsGroupAssistant'
     if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
-        SendChatMessage(phrases[index], "RAID")
+        SendChatMessage(phrases[index], channel)
     else
         self:Print("You must be a raid leader or assistant to make calls.")
     end

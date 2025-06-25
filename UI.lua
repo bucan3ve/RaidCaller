@@ -53,39 +53,47 @@ function UIModule:Create()
         if self.widgets.autoModeCheckbox then
             self.widgets.autoModeCheckbox:SetLabel("Automatic Mode (requires BigWigs)")
             self.widgets.autoModeCheckbox:SetValue(self.config:IsAutomaticMode())
-            self.widgets.autoModeCheckbox:SetCallback("OnValueChanged", function()
-                local currentState = self.config:IsAutomaticMode()
-                local newState = not currentState
-                self.config:SetAutomaticMode(newState)
-                if newState then self.addon:HookBigWigs() else self.addon:UnhookBigWigs() end
+            self.widgets.autoModeCheckbox:SetCallback("OnValueChanged", function(_, _, _, value)
+                self.config:SetAutomaticMode(value)
+                if value then self.addon:HookBigWigs() else self.addon:UnhookBigWigs() end
                 self:Update()
             end)
             controlsGroup:AddChild(self.widgets.autoModeCheckbox)
         end
+        
+        -- NEW: Checkbox for Raid Warnings
+        self.widgets.warningCheckbox = CreateWidget("CheckBox")
+        if self.widgets.warningCheckbox then
+            self.widgets.warningCheckbox:SetLabel("Send as Raid Warning")
+            self.widgets.warningCheckbox:SetValue(self.config:IsSendAsWarning())
+            self.widgets.warningCheckbox:SetCallback("OnValueChanged", function(_, _, _, value)
+                self.config:SetSendAsWarning(value)
+                self.addon:DebugPrint("Send as Raid Warning set to: " .. tostring(value))
+            end)
+            controlsGroup:AddChild(self.widgets.warningCheckbox)
+        end
 
-        -- Raid Dropdown -- FIXED
+        -- Raid Dropdown
         self.widgets.raidDropdown = CreateWidget("Dropdown")
         if self.widgets.raidDropdown then
             self.widgets.raidDropdown:SetLabel("Select Raid")
-            -- CORRECTED: The callback signature now correctly captures the 4th argument as the value.
             self.widgets.raidDropdown:SetCallback("OnValueChanged", function(_, _, _, selectedRaidName)
-                self.addon:DebugPrint("Raid dropdown callback fired! Value:", selectedRaidName or "nil")
+                self.addon:DebugPrint("Raid dropdown callback fired! Value: " .. tostring(selectedRaidName or "nil"))
                 if selectedRaidName then
                     self.config:SetManualRaid(selectedRaidName)
-                    self.config:SetManualBoss(nil) -- Reset boss selection when raid changes
+                    self.config:SetManualBoss(nil) 
                     self:Update()
                 end
             end)
             controlsGroup:AddChild(self.widgets.raidDropdown)
         end
 
-        -- Boss Dropdown -- FIXED
+        -- Boss Dropdown
         self.widgets.bossDropdown = CreateWidget("Dropdown")
         if self.widgets.bossDropdown then
             self.widgets.bossDropdown:SetLabel("Select Boss")
-            -- CORRECTED: The callback signature now correctly captures the 4th argument as the value.
             self.widgets.bossDropdown:SetCallback("OnValueChanged", function(_, _, _, selectedBossName)
-                self.addon:DebugPrint("Boss dropdown callback fired! Value:", selectedBossName or "nil")
+                self.addon:DebugPrint("Boss dropdown callback fired! Value: " .. tostring(selectedBossName or "nil"))
                 if selectedBossName then
                     self.config:SetManualBoss(selectedBossName)
                     self:Update()
@@ -124,6 +132,11 @@ function UIModule:Update()
     if self.widgets.autoModeCheckbox then self.widgets.autoModeCheckbox:SetValue(isAutomatic) end
     if self.widgets.raidDropdown then self.widgets.raidDropdown:SetDisabled(isAutomatic) end
     if self.widgets.bossDropdown then self.widgets.bossDropdown:SetDisabled(isAutomatic) end
+    
+    -- ADDED: Update the new checkbox state
+    if self.widgets.warningCheckbox then
+        self.widgets.warningCheckbox:SetValue(self.config:IsSendAsWarning())
+    end
 
     -- ======== RAID LIST LOGIC ========
     if self.widgets.raidDropdown then

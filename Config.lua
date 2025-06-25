@@ -19,6 +19,16 @@ function ConfigModule:new(db)
     function config:IsAutomaticMode()
         return self.db.profile.isAutomatic
     end
+    
+    -- NEW: Set the Raid Warning mode
+    function config:SetSendAsWarning(isWarning)
+        self.db.profile.sendAsWarning = isWarning
+    end
+
+    -- NEW: Get the Raid Warning mode
+    function config:IsSendAsWarning()
+        return self.db.profile.sendAsWarning
+    end
 
     -- Set the manually selected raid
     function config:SetManualRaid(raid)
