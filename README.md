@@ -1,36 +1,60 @@
-RaidCaller
-RaidCaller is a helper addon for World of Warcraft (Classic, 1.12.1 client) designed to assist raid leaders and assistants by providing a quick and easy way to send pre-defined, instructional messages to the raid chat.
+# RaidCaller
 
-It streamlines raid communication, allowing leaders to focus on the encounter mechanics instead of typing out commands.
+**Your essential co-pilot for clear and effective raid leading in Vanilla WoW.**
 
-Features
-Dual-Window Interface: A dedicated Settings Window for pre-fight configuration and a separate, compact Phrases Window for use during combat.
+RaidCaller is a lightweight, modern addon for the World of Warcraft 1.12.1 client, designed to streamline communication for raid leaders and assistants. It replaces the need to manually type commands during a hectic boss fight with a simple, powerful, and intuitive interface.
 
-Manual & Automatic Modes:
+Spend less time typing and more time leading.
 
-Manual Mode: Manually select the current raid and boss to load the relevant phrases.
+## ✨ Core Features
 
-Automatic Mode: Integrates with the BigWigs Bossmods addon to automatically detect the current encounter and load the appropriate phrases.
+* **💬 Instant Raid Calls:** Click a button to instantly send a pre-written, instructional message to either `/raid` or as a prominent `/raidwarning`.
 
-Configurable Chat Channels: Choose to send messages to the standard /raid channel or as a prominent /raidwarning.
+* **📚 Extensive Phrase Library:** Comes pre-loaded with common, effective phrases for every major boss in Onyxia's Lair, Molten Core, Blackwing Lair, Zul'Gurub, and Ahn'Qiraj (both AQ20 and AQ40).
 
-DataBroker (LDB) Support: Includes a LibDataBroker plugin that creates a minimap icon for users of display addons like Titan Panel or FuBar. The LDB object provides:
+* **🧠 Smart Dual-Window UI:**
 
-At-a-glance status of the current mode and selected boss.
+  * **Settings Window:** A clean interface for pre-fight setup. Select the raid, boss, and message type.
 
-Left-click to toggle the Settings window.
+  * **Phrases Window:** A separate, compact window showing only the relevant phrases for the current fight. Set up your calls, close the settings, and keep the small phrase list on screen.
 
-(Future) Right-click menu for quick configuration.
+* **🤖 Automatic & Manual Modes:**
 
-Extensive Phrase Library: Comes pre-loaded with common phrases for all major Vanilla WoW raids.
+  * **Manual:** You have full control to select the raid and boss.
 
-Slash Commands
-You can interact with RaidCaller using the following slash commands:
+  * **Automatic:** Integrates seamlessly with **BigWigs Bossmods** to detect the active encounter and load the correct phrases for you, automatically.
 
-/rc or /raidcaller: Toggles the main Settings Window.
+* **🔌 LDB / Minimap Support:** Includes a fully-featured **LibDataBroker (LDB)** plugin. If you use a display addon like Titan Panel, FuBar, or just want a minimap icon, RaidCaller integrates perfectly.
 
-/rc settings: Toggles the main Settings Window.
+  * Shows current mode and boss at a glance.
 
-/rc phrases: Toggles the Phrases Window.
+  * Left-click to toggle the settings panel.
 
-/rc debug: Toggles debug message printing in the chat console for troubleshooting.
+## 🚀 How to Use
+
+### Basic Workflow
+
+1. **Open Settings:** Type `/rc` or left-click the minimap icon to open the main settings window.
+
+2. **Configure:**
+
+   * Choose your mode (`Manual` or `Automatic`).
+
+   * Choose your message type (`Raid` or `Raid Warning`).
+
+   * In Manual mode, select the desired Raid and Boss from the dropdowns.
+
+3. **Open Phrases:** Click the "Toggle Phrases" button to show the compact caller window.
+
+4. **Lead the Raid:** Close the settings window. Use the Phrases window to make your calls with a single click.
+
+### Slash Commands
+
+The addon can be controlled with simple slash commands:
+
+| **Command** | **Alias** | **Description** | 
+ | ----- | ----- | ----- | 
+| `/raidcaller settings` | `/rc` | Toggles the main settings window. | 
+| `/raidcaller phrases` | `/rc phrases` | Toggles the separate phrases window. | 
+| `/raidcaller debug` | `/rc debug` | Toggles debug message output for troubleshooting. | 
+| `/raidcaller say [number]` | `/rc say [number]` | Says the phrase corresponding to the number. (Used for keybindings) | 
