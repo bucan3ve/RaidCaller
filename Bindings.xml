@@ -1,0 +1,20 @@
+<Bindings>
+    <Binding name="RC_TOGGLE" header="RAIDCALLER" category="ADDONS">
+        RaidCaller.UI:Toggle()
+    </Binding>
+    <Binding name="RC_SAY_1" category="ADDONS">
+        RaidCaller.addon:SayPhrase(1)
+    </Binding>
+    <Binding name="RC_SAY_2" category="ADDONS">
+        RaidCaller.addon:SayPhrase(2)
+    </Binding>
+    <Binding name="RC_SAY_3" category="ADDONS">
+        RaidCaller.addon:SayPhrase(3)
+    </Binding>
+    <Binding name="RC_SAY_4" category="ADDONS">
+        RaidCaller.addon:SayPhrase(4)
+    </Binding>
+    <Binding name="RC_SAY_5" category="ADDONS">
+        RaidCaller.addon:SayPhrase(5)
+    </Binding>
+</Bindings>

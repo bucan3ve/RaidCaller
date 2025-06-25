@@ -1,0 +1,45 @@
+## Interface: 11200
+## Title: RaidCaller
+## Author: Tuo Nome
+## Version: 4.0 (Manual First Refactor)
+## Notes: Assistente per le chiamate in raid, con focus sulla stabilita' della modalita' manuale.
+
+## SavedVariables: RaidCallerDB
+## OptionalDeps: Ace3, BigWigs
+
+# ===================================================================
+# FONDAMENTA (L'ordine e' critico)
+# ===================================================================
+Libs\vanilla\LibStub\LibStub.lua
+Libs\vanilla\CallbackHandler-1.0\CallbackHandler-1.0.xml
+
+# ===================================================================
+# LIBRERIE PRINCIPALI (Caricate nell'ordine delle dipendenze)
+# ===================================================================
+Libs\vanilla\Ace3\AceCore-3.0\AceCore-3.0.xml
+Libs\vanilla\Ace3\AceAddon-3.0\AceAddon-3.0.xml
+Libs\vanilla\Ace3\AceEvent-3.0\AceEvent-3.0.xml
+Libs\vanilla\Ace3\AceConsole-3.0\AceConsole-3.0.xml
+Libs\vanilla\Ace3\AceDB-3.0\AceDB-3.0.xml
+Libs\vanilla\Ace3\AceGUI-3.0\AceGUI-3.0.xml
+
+# --- LIBRERIA ICONA (Percorso corretto) ---
+Libs\vanilla\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+# ===================================================================
+# DATI DELL'ADDON
+# ===================================================================
+phrases.lua
+
+# ===================================================================
+# MODULI DELL'ADDON
+# ===================================================================
+Config.lua
+BossDetector.lua
+UI.lua
+
+# ===================================================================
+# FILE PRINCIPALE E PUNTO D'INGRESSO
+# ===================================================================
+RaidCaller.lua
+main.lua
