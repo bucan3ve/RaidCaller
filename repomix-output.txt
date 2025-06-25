@@ -161,30 +161,6 @@ File: .repomix/bundles.json
 }
 
 ================
-File: Bindings.xml
-================
-<Bindings>
-    <Binding name="RC_TOGGLE" header="RAIDCALLER" category="ADDONS">
-        RaidCaller.UI:Toggle()
-    </Binding>
-    <Binding name="RC_SAY_1" category="ADDONS">
-        RaidCaller.addon:SayPhrase(1)
-    </Binding>
-    <Binding name="RC_SAY_2" category="ADDONS">
-        RaidCaller.addon:SayPhrase(2)
-    </Binding>
-    <Binding name="RC_SAY_3" category="ADDONS">
-        RaidCaller.addon:SayPhrase(3)
-    </Binding>
-    <Binding name="RC_SAY_4" category="ADDONS">
-        RaidCaller.addon:SayPhrase(4)
-    </Binding>
-    <Binding name="RC_SAY_5" category="ADDONS">
-        RaidCaller.addon:SayPhrase(5)
-    </Binding>
-</Bindings>
-
-================
 File: BossDetector.lua
 ================
 -- BossDetector.lua
@@ -26133,6 +26109,30 @@ File: RaidCaller.code-workspace
 }
 
 ================
+File: Bindings.xml
+================
+<Bindings>
+    <Binding name="RC_TOGGLE" header="RAIDCALLER" category="ADDONS">
+        RaidCaller_Toggle()
+    </Binding>
+    <Binding name="RC_SAY_1" category="ADDONS">
+        RaidCaller_Say(1)
+    </Binding>
+    <Binding name="RC_SAY_2" category="ADDONS">
+        RaidCaller_Say(2)
+    </Binding>
+    <Binding name="RC_SAY_3" category="ADDONS">
+        RaidCaller_Say(3)
+    </Binding>
+    <Binding name="RC_SAY_4" category="ADDONS">
+        RaidCaller_Say(4)
+    </Binding>
+    <Binding name="RC_SAY_5" category="ADDONS">
+        RaidCaller_Say(5)
+    </Binding>
+</Bindings>
+
+================
 File: Libs/vanilla/Ace3/AceGUI-3.0/AceGUI-3.0.lua
 ================
 --- **AceGUI-3.0** provides access to numerous widgets which can be used to create GUIs.
@@ -28810,7 +28810,7 @@ RaidCaller.lua
 File: RaidCaller.lua
 ================
 -- RaidCaller.lua
--- Main addon object. Rewritten with a stable, two-phase initialization lifecycle.
+-- Main addon object. Restored to original, stable structure.
 
 RaidCaller = RaidCaller or {}
 
@@ -28818,54 +28818,51 @@ local addonName = "RaidCaller"
 local RC = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 RaidCaller.addon = RC
 
-
--- PHASE 1: Initialize non-UI, non-event systems. This runs very early.
+-- Initialize modules
 function RC:OnInitialize()
-    self:Print("RaidCaller Initializing (Phase 1: Core Systems)...")
+    self:Print("RaidCaller Initializing...")
     
-    -- Setup Database
-    local defaults = { profile = { isAutomatic = false, manualRaid = nil, manualBoss = nil, minimap = { hide = false } } }
+    -- Database
+    local defaults = {
+        profile = {
+            isAutomatic = false,
+            manualRaid = nil,
+            manualBoss = nil,
+            minimap = {
+                hide = false,
+            }
+        }
+    }
     self.db = LibStub("AceDB-3.0"):New("RaidCallerDB", defaults, true)
 
-    -- Create non-UI modules
-    self.Config = RaidCaller.ConfigModule:new(self.db)
-    self.BossDetector = RaidCaller.BossDetectorModule:new(self)
-
-    -- Load phrase data
+    -- Modules
     self.phrases = RaidCaller.PhraseData or {}
-    RaidCaller.PhraseData = nil
+    RaidCaller.PhraseData = nil -- Clear global reference
+
+    self.Config = RaidCaller.ConfigModule:new(self.db) -- Changed from self.config to self.Config to match working file
+    self.BossDetector = RaidCaller.BossDetectorModule:new(self) -- Changed from self.bossDetector to self.BossDetector
+    self.UI = RaidCaller.UIModule:new(self) -- Changed from self.ui to self.UI and restored original arguments
     
-    self:Print("Core Systems Initialized.")
-end
-
--- PHASE 2: Initialize UI and connect to the game world. This runs when the addon is enabled.
-function RC:OnEnable()
-    self:Print("RaidCaller Enabling (Phase 2: UI and Events)...")
-
-    -- Create the UI module HERE. It's safer as it may create frames.
-    self.UI = RaidCaller.UIModule:new(self, self.Config)
-    if not self.UI then
-        self:Print("|cffff0000CRITICAL ERROR: UI Module failed to create. Addon will be non-interactive.|r")
-        return
-    end
-
-    -- Setup slash commands HERE, now that we know the UI object exists.
+    -- Slash commands
     self:RegisterChatCommand("rc", "ChatCommand")
     self:RegisterChatCommand("raidcaller", "ChatCommand")
-
-    -- Setup the minimap icon
-    self:SetupMinimapIcon()
     
-    -- Register for game events
+    self:Print("RaidCaller Initialized.")
+end
+
+function RC:OnEnable()
+    self:Print("RaidCaller Enabled.")
+    
+    -- Register for events
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     
-    -- Hook other addons if needed
-    if self.Config and self.Config:IsAutomaticMode() and IsAddOnLoaded("BigWigs") then
+    if self.Config:IsAutomaticMode() and IsAddOnLoaded("BigWigs") then
         self:HookBigWigs()
     end
 
-    self:Print("RaidCaller Fully Enabled and Ready.")
+    -- Setup minimap icon
+    self:SetupMinimapIcon()
 end
 
 function RC:HookBigWigs()
@@ -28882,7 +28879,7 @@ function RC:UnhookBigWigs()
 end
 
 function RC:ChatCommand(input)
-    if not self.UI then return end -- Safety check
+    if not self.UI then return end
     if type(input) ~= "string" then return end
 
     if input == "" then
@@ -28891,7 +28888,10 @@ function RC:ChatCommand(input)
     end
     
     local ok, command, arg = pcall(string.match, input, "^(%S+)%s*(.-)$")
-    if not ok or not command then return end
+    if not ok or not command then
+        self.UI:Toggle()
+        return
+    end
 
     command = string.lower(command)
 
@@ -28956,6 +28956,20 @@ function RC:SayPhrase(index)
     end
 end
 
+-- Global function for the toggle keybind.
+function RaidCaller_Toggle()
+    if RaidCaller and RaidCaller.addon and RaidCaller.addon.UI then
+        RaidCaller.addon.UI:Toggle()
+    end
+end
+
+-- Global function for the "say" keybinds.
+function RaidCaller_Say(index)
+    if RaidCaller and RaidCaller.addon then
+        RaidCaller.addon:SayPhrase(index)
+    end
+end
+
 ================
 File: UI.lua
 ================
@@ -28979,272 +28993,224 @@ local function CreateWidget(widgetType)
     return widget
 end
 
-function UIModule:new(addon, config)
+function UIModule:new(addon)
     local ui = {}
+    setmetatable(ui, { __index = self })
+    
     ui.addon = addon
-    ui.config = config
+    ui.config = addon.Config
     ui.mainFrame = nil
     ui.widgets = {}
-    -- Store the sorted lists to translate indexes back to names
     ui.sortedRaidNames = {} 
     ui.sortedBossNames = {}
-    
-    -- This function is now fully compatible with the Lua 5.0 interpreter.
-    function ui:DebugPrint(...)
-        if self.addon and self.addon.debug then
-            local output = "|cff33ff99DEBUG:|r"
-            -- In Lua 5.0, varargs are accessed via the special 'arg' table.
-            -- 'arg.n' holds the number of arguments.
-            for i = 1, (arg and arg.n or 0) do
-                output = output .. " " .. tostring(arg[i])
-            end
-            self.addon:Print(output)
-        end
-    end
-
-    function ui:Create()
-        self.mainFrame = CreateWidget("Frame")
-        if not self.mainFrame then return end -- Critical failure, cannot continue
-
-        self.mainFrame:SetTitle("RaidCaller v5.2")
-        self.mainFrame:SetLayout("Flow")
-        self.mainFrame:SetPoint("CENTER")
-        self.mainFrame:SetWidth(400)
-        self.mainFrame:SetHeight(500)
-        self.mainFrame:Hide()
-
-        local controlsGroup = CreateWidget("SimpleGroup")
-        if controlsGroup then
-            controlsGroup:SetLayout("Flow")
-            controlsGroup:SetFullWidth(true)
-            self.mainFrame:AddChild(controlsGroup)
-
-            -- Create automatic mode checkbox
-            self.widgets.autoModeCheckbox = CreateWidget("CheckBox")
-            if self.widgets.autoModeCheckbox then
-                self.widgets.autoModeCheckbox:SetLabel("Automatic Mode (requires BigWigs)")
-                self.widgets.autoModeCheckbox:SetValue(self.config:IsAutomaticMode())
-                self.widgets.autoModeCheckbox:SetCallback("OnValueChanged", function()
-                    local currentState = self.config:IsAutomaticMode()
-                    local newState = not currentState
-                    self.config:SetAutomaticMode(newState)
-                    if newState then self.addon:HookBigWigs() else self.addon:UnhookBigWigs() end
-                    self:Update()
-                end)
-                controlsGroup:AddChild(self.widgets.autoModeCheckbox)
-            end
-
-            -- Create raid dropdown with direct item selection
-            self.widgets.raidDropdown = CreateWidget("Dropdown")
-            if self.widgets.raidDropdown then
-                self.widgets.raidDropdown:SetLabel("Select Raid")
-                
-                self.raidPulloutOnClick = self.widgets.raidDropdown.pullout and self.widgets.raidDropdown.pullout.OnClick
-                
-                if self.widgets.raidDropdown.pullout then
-                    self.widgets.raidDropdown.pullout.OnClick = function(button)
-                        local itemIndex = button.userdata and button.userdata.value
-                        self:DebugPrint("Raid pullout clicked, item index:", itemIndex)
-                        
-                        if self.raidPulloutOnClick then
-                            self.raidPulloutOnClick(unpack(arg))
-                        end
-                        
-                        if itemIndex and itemIndex > 0 and self.sortedRaidNames[itemIndex] then
-                            local selectedRaidName = self.sortedRaidNames[itemIndex]
-                            self.addon:Print("Selected raid: " .. selectedRaidName)
-                            self.config:SetManualRaid(selectedRaidName)
-                            self.config:SetManualBoss(nil)
-                            self:Update()
-                        end
-                    end
-                end
-                
-                self.widgets.raidDropdown:SetCallback("OnValueChanged", function(_, _, value)
-                    self:DebugPrint("Raid dropdown OnValueChanged:", value)
-                    
-                    if value and value > 0 and self.sortedRaidNames[value] then
-                        local selectedRaidName = self.sortedRaidNames[value]
-                        self.addon:Print("Selected raid: " .. selectedRaidName)
-                        self.config:SetManualRaid(selectedRaidName)
-                        self.config:SetManualBoss(nil)
-                        self:Update()
-                    end
-                end)
-                
-                controlsGroup:AddChild(self.widgets.raidDropdown)
-            end
-
-            -- Create boss dropdown with direct item selection
-            self.widgets.bossDropdown = CreateWidget("Dropdown")
-            if self.widgets.bossDropdown then
-                self.widgets.bossDropdown:SetLabel("Select Boss")
-                
-                self.bossPulloutOnClick = self.widgets.bossDropdown.pullout and self.widgets.bossDropdown.pullout.OnClick
-                
-                if self.widgets.bossDropdown.pullout then
-                    self.widgets.bossDropdown.pullout.OnClick = function(button)
-                        local itemIndex = button.userdata and button.userdata.value
-                        self:DebugPrint("Boss pullout clicked, item index:", itemIndex)
-                        
-                        if self.bossPulloutOnClick then
-                            self.bossPulloutOnClick(unpack(arg))
-                        end
-                        
-                        if itemIndex and itemIndex > 0 and self.sortedBossNames[itemIndex] then
-                            local selectedBossName = self.sortedBossNames[itemIndex]
-                            self.addon:Print("Selected boss: " .. selectedBossName)
-                            self.config:SetManualBoss(selectedBossName)
-                            self:Update()
-                        end
-                    end
-                end
-                
-                self.widgets.bossDropdown:SetCallback("OnValueChanged", function(_, _, value)
-                    self:DebugPrint("Boss dropdown OnValueChanged:", value)
-                    
-                    if value and value > 0 and self.sortedBossNames[value] then
-                        local selectedBossName = self.sortedBossNames[value]
-                        self.addon:Print("Selected boss: " .. selectedBossName)
-                        self.config:SetManualBoss(selectedBossName)
-                        self:Update()
-                    end
-                end)
-                
-                controlsGroup:AddChild(self.widgets.bossDropdown)
-            end
-        end
-
-        local spacer = CreateWidget("Label")
-        if spacer then
-            spacer:SetText("----------------------------------------")
-            spacer:SetFullWidth(true)
-            self.mainFrame:AddChild(spacer)
-        end
-
-        local phraseGroup = CreateWidget("ScrollFrame")
-        if phraseGroup then
-            phraseGroup:SetLayout("Flow")
-            phraseGroup:SetFullWidth(true)
-            phraseGroup:SetHeight(300)
-            self.mainFrame:AddChild(phraseGroup)
-            
-            self.widgets.phraseGroup = phraseGroup
-            self.widgets.phraseButtons = {}
-        end
-        
-        return self.mainFrame
-    end
-
-    function ui:SetDropdownByName(dropdown, sortedList, name)
-        if not dropdown or not sortedList or not name then return end
-        
-        for i, itemName in ipairs(sortedList) do
-            if itemName == name then
-                dropdown:SetValue(i)
-                return i
-            end
-        end
-        
-        dropdown:SetValue(nil)
-        return nil
-    end
-
-    function ui:Update()
-        if not self.mainFrame then return end
-        
-        local isAutomatic = self.config:IsAutomaticMode()
-        if self.widgets.autoModeCheckbox then self.widgets.autoModeCheckbox:SetValue(isAutomatic) end
-        if self.widgets.raidDropdown then self.widgets.raidDropdown:SetDisabled(isAutomatic) end
-        if self.widgets.bossDropdown then self.widgets.bossDropdown:SetDisabled(isAutomatic) end
-
-        if self.widgets.raidDropdown then
-            wipe(self.sortedRaidNames)
-            for raidName in pairs(self.addon.phrases) do 
-                table.insert(self.sortedRaidNames, raidName) 
-            end
-            table.sort(self.sortedRaidNames)
-            
-            local raidList = {}
-            for i, raidName in ipairs(self.sortedRaidNames) do
-                raidList[i] = raidName
-            end
-            
-            self.widgets.raidDropdown:SetList(raidList)
-            self:SetDropdownByName(self.widgets.raidDropdown, self.sortedRaidNames, self.config:GetManualRaid())
-        end
-
-        if self.widgets.bossDropdown then
-            wipe(self.sortedBossNames)
-            
-            local currentRaid = nil
-            if isAutomatic then
-                currentRaid = self.addon.BossDetectorModule:GetCurrentRaid()
-            else
-                currentRaid = self.config:GetManualRaid()
-            end
-            
-            if currentRaid and self.addon.phrases[currentRaid] then
-                for bossName in pairs(self.addon.phrases[currentRaid]) do
-                    table.insert(self.sortedBossNames, bossName)
-                end
-                table.sort(self.sortedBossNames)
-                
-                local bossList = {}
-                for i, bossName in ipairs(self.sortedBossNames) do
-                    bossList[i] = bossName
-                end
-                
-                self.widgets.bossDropdown:SetList(bossList)
-                self:SetDropdownByName(self.widgets.bossDropdown, self.sortedBossNames, self.config:GetManualBoss())
-            else
-                self.widgets.bossDropdown:SetList({})
-                self.widgets.bossDropdown:SetValue(nil)
-            end
-        end
-        
-        if self.widgets.phraseGroup and self.widgets.phraseButtons then
-            for _, button in ipairs(self.widgets.phraseButtons) do
-                button:Hide()
-            end
-            wipe(self.widgets.phraseButtons)
-            self.widgets.phraseGroup:ReleaseChildren()
-            
-            local phrases = self.addon:GetCurrentPhrases()
-            
-            if phrases then
-                for i, phrase in ipairs(phrases) do
-                    if i <= MAX_BUTTONS then
-                        local btn = CreateWidget("Button")
-                        if btn then
-                            btn:SetText(i .. ". " .. phrase)
-                            btn:SetFullWidth(true)
-                            btn.phraseIndex = i
-                            btn:SetCallback("OnClick", function(widget)
-                                self.addon:SayPhrase(widget.phraseIndex)
-                            end)
-                            self.widgets.phraseGroup:AddChild(btn)
-                            table.insert(self.widgets.phraseButtons, btn)
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    function ui:Toggle()
-        if not self.mainFrame then self:Create() end
-        if not self.mainFrame then return end
-        
-        if self.mainFrame.frame:IsShown() then
-            self.mainFrame:Hide()
-        else
-            self:Update()
-            self.mainFrame:Show()
-        end
-    end
 
     return ui
+end
+
+function UIModule:DebugPrint(...)
+    if self.addon and self.addon.debug then
+        local output = "|cff33ff99DEBUG:|r"
+        for i = 1, (arg and arg.n or 0) do
+            output = output .. " " .. tostring(arg[i])
+        end
+        self.addon:Print(output)
+    end
+end
+
+function UIModule:Create()
+    self.mainFrame = CreateWidget("Frame")
+    if not self.mainFrame then return end
+
+    self.mainFrame:SetTitle("RaidCaller v5.2")
+    self.mainFrame:SetLayout("Flow")
+    self.mainFrame:SetPoint("CENTER")
+    self.mainFrame:SetWidth(400)
+    self.mainFrame:SetHeight(500)
+    self.mainFrame:Hide()
+
+    local controlsGroup = CreateWidget("SimpleGroup")
+    if controlsGroup then
+        controlsGroup:SetLayout("Flow")
+        controlsGroup:SetFullWidth(true)
+        self.mainFrame:AddChild(controlsGroup)
+
+        self.widgets.autoModeCheckbox = CreateWidget("CheckBox")
+        if self.widgets.autoModeCheckbox then
+            self.widgets.autoModeCheckbox:SetLabel("Automatic Mode (requires BigWigs)")
+            self.widgets.autoModeCheckbox:SetValue(self.config:IsAutomaticMode())
+            self.widgets.autoModeCheckbox:SetCallback("OnValueChanged", function()
+                local currentState = self.config:IsAutomaticMode()
+                local newState = not currentState
+                self.config:SetAutomaticMode(newState)
+                if newState then self.addon:HookBigWigs() else self.addon:UnhookBigWigs() end
+                self:Update()
+            end)
+            controlsGroup:AddChild(self.widgets.autoModeCheckbox)
+        end
+
+        -- Raid Dropdown -- MODIFIED
+        self.widgets.raidDropdown = CreateWidget("Dropdown")
+        if self.widgets.raidDropdown then
+            self.widgets.raidDropdown:SetLabel("Select Raid")
+            self.widgets.raidDropdown:SetCallback("OnValueChanged", function(_, _, value)
+                local selectedRaidName = self.sortedRaidNames[value]
+                if selectedRaidName then
+                    self.config:SetManualRaid(selectedRaidName)
+                    self.config:SetManualBoss(nil) -- Reset boss selection when raid changes
+                    self:Update()
+                end
+            end)
+            controlsGroup:AddChild(self.widgets.raidDropdown)
+        end
+
+        -- Boss Dropdown -- MODIFIED
+        self.widgets.bossDropdown = CreateWidget("Dropdown")
+        if self.widgets.bossDropdown then
+            self.widgets.bossDropdown:SetLabel("Select Boss")
+            self.widgets.bossDropdown:SetCallback("OnValueChanged", function(_, _, value)
+                local selectedBossName = self.sortedBossNames[value]
+                if selectedBossName then
+                    self.config:SetManualBoss(selectedBossName)
+                    self:Update()
+                end
+            end)
+            controlsGroup:AddChild(self.widgets.bossDropdown)
+        end
+    end
+
+    local spacer = CreateWidget("Label")
+    if spacer then
+        spacer:SetText("----------------------------------------")
+        spacer:SetFullWidth(true)
+        self.mainFrame:AddChild(spacer)
+    end
+
+    local phraseGroup = CreateWidget("ScrollFrame")
+    if phraseGroup then
+        phraseGroup:SetLayout("Flow")
+        phraseGroup:SetFullWidth(true)
+        phraseGroup:SetHeight(300)
+        self.mainFrame:AddChild(phraseGroup)
+        self.widgets.phraseGroup = phraseGroup
+        self.widgets.phraseButtons = {}
+    end
+    
+    return self.mainFrame
+end
+
+function UIModule:SetDropdownByName(dropdown, sortedList, name)
+    if not dropdown or not sortedList or not name then return end
+    for i, itemName in ipairs(sortedList) do
+        if itemName == name then
+            dropdown:SetValue(i)
+            return i
+        end
+    end
+    dropdown:SetValue(nil)
+    return nil
+end
+
+function UIModule:Update()
+    if not self.mainFrame then return end
+    
+    local isAutomatic = self.config:IsAutomaticMode()
+    if self.widgets.autoModeCheckbox then self.widgets.autoModeCheckbox:SetValue(isAutomatic) end
+    if self.widgets.raidDropdown then self.widgets.raidDropdown:SetDisabled(isAutomatic) end
+    if self.widgets.bossDropdown then self.widgets.bossDropdown:SetDisabled(isAutomatic) end
+
+    -- ======== RAID LIST LOGIC ========
+    if self.widgets.raidDropdown then
+        self.sortedRaidNames = {}
+        for raidName in pairs(self.addon.phrases) do 
+            table.insert(self.sortedRaidNames, raidName) 
+        end
+        table.sort(self.sortedRaidNames)
+        
+        local raidList = {}
+        for i, raidName in ipairs(self.sortedRaidNames) do
+            raidList[i] = raidName
+        end
+        
+        self.widgets.raidDropdown:SetList(raidList)
+        self:SetDropdownByName(self.widgets.raidDropdown, self.sortedRaidNames, self.config:GetManualRaid())
+    end
+
+    -- ======== BOSS LIST LOGIC ========
+    if self.widgets.bossDropdown then
+        self.sortedBossNames = {}
+        
+        local currentRaid = nil
+        if isAutomatic then
+            -- MODIFIED: Correctly get the current zone from the BossDetector module property.
+            currentRaid = self.addon.BossDetector.currentZone
+        else
+            currentRaid = self.config:GetManualRaid()
+        end
+        
+        if currentRaid and self.addon.phrases[currentRaid] then
+            for bossName in pairs(self.addon.phrases[currentRaid]) do
+                table.insert(self.sortedBossNames, bossName)
+            end
+            table.sort(self.sortedBossNames)
+            
+            local bossList = {}
+            for i, bossName in ipairs(self.sortedBossNames) do
+                bossList[i] = bossName
+            end
+            
+            self.widgets.bossDropdown:SetList(bossList)
+            -- MODIFIED: Use the correct boss name when in automatic mode.
+            if isAutomatic then
+                 self:SetDropdownByName(self.widgets.bossDropdown, self.sortedBossNames, self.addon.BossDetector.currentBoss)
+            else
+                 self:SetDropdownByName(self.widgets.bossDropdown, self.sortedBossNames, self.config:GetManualBoss())
+            end
+        else
+            self.widgets.bossDropdown:SetList({})
+            self.widgets.bossDropdown:SetValue(nil)
+        end
+    end
+    
+    -- ======== PHRASE BUTTONS LOGIC ========
+    if self.widgets.phraseGroup and self.widgets.phraseButtons then
+        for _, button in ipairs(self.widgets.phraseButtons) do
+            button:Hide()
+        end
+        self.widgets.phraseButtons = {}
+        self.widgets.phraseGroup:ReleaseChildren()
+        
+        local phrases = self.addon:GetCurrentPhrases()
+        
+        if phrases then
+            for i, phrase in ipairs(phrases) do
+                if i <= MAX_BUTTONS then
+                    local btn = CreateWidget("Button")
+                    if btn then
+                        btn:SetText(i .. ". " .. phrase)
+                        btn:SetFullWidth(true)
+                        btn.phraseIndex = i
+                        btn:SetCallback("OnClick", function(widget)
+                            self.addon:SayPhrase(widget.phraseIndex)
+                        end)
+                        self.widgets.phraseGroup:AddChild(btn)
+                        table.insert(self.widgets.phraseButtons, btn)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function UIModule:Toggle()
+    if not self.mainFrame then self:Create() end
+    if not self.mainFrame then return end
+    
+    if self.mainFrame.frame:IsShown() then
+        self.mainFrame:Hide()
+    else
+        self:Update()
+        self.mainFrame:Show()
+    end
 end
 
 

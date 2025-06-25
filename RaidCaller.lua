@@ -1,5 +1,5 @@
 -- RaidCaller.lua
--- Main addon object. Rewritten with a stable, two-phase initialization lifecycle.
+-- Main addon object. Restored to original, stable structure.
 
 RaidCaller = RaidCaller or {}
 
@@ -7,54 +7,60 @@ local addonName = "RaidCaller"
 local RC = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 RaidCaller.addon = RC
 
+RC.debug = false
 
--- PHASE 1: Initialize non-UI, non-event systems. This runs very early.
-function RC:OnInitialize()
-    self:Print("RaidCaller Initializing (Phase 1: Core Systems)...")
-    
-    -- Setup Database
-    local defaults = { profile = { isAutomatic = false, manualRaid = nil, manualBoss = nil, minimap = { hide = false } } }
-    self.db = LibStub("AceDB-3.0"):New("RaidCallerDB", defaults, true)
-
-    -- Create non-UI modules
-    self.Config = RaidCaller.ConfigModule:new(self.db)
-    self.BossDetector = RaidCaller.BossDetectorModule:new(self)
-
-    -- Load phrase data
-    self.phrases = RaidCaller.PhraseData or {}
-    RaidCaller.PhraseData = nil -- Clear global reference after loading
-    
-    self:Print("Core Systems Initialized.")
+-- FIXED: Simplified the debug function to be more reliable.
+function RC:DebugPrint(message)
+    if not self.debug then return end
+    self:Print("|cff33ff99DEBUG:|r " .. tostring(message))
 end
 
--- PHASE 2: Initialize UI and connect to the game world. This runs when the addon is enabled.
-function RC:OnEnable()
-    self:Print("RaidCaller Enabling (Phase 2: UI and Events)...")
 
-    -- Create the UI module HERE. It's safer as it may create frames.
-    self.UI = RaidCaller.UIModule:new(self, self.Config)
-    if not self.UI then
-        self:Print("|cffff0000CRITICAL ERROR: UI Module failed to create. Addon will be non-interactive.|r")
-        return
-    end
+-- Initialize modules
+function RC:OnInitialize()
+    self:Print("RaidCaller Initializing...")
+    
+    -- Database
+    local defaults = {
+        profile = {
+            isAutomatic = false,
+            manualRaid = nil,
+            manualBoss = nil,
+            minimap = {
+                hide = false,
+            }
+        }
+    }
+    self.db = LibStub("AceDB-3.0"):New("RaidCallerDB", defaults, true)
 
-    -- Setup slash commands HERE, now that we know the UI object exists.
+    -- Modules
+    self.phrases = RaidCaller.PhraseData or {}
+    RaidCaller.PhraseData = nil -- Clear global reference
+
+    self.Config = RaidCaller.ConfigModule:new(self.db)
+    self.BossDetector = RaidCaller.BossDetectorModule:new(self)
+    self.UI = RaidCaller.UIModule:new(self)
+    
+    -- Slash commands
     self:RegisterChatCommand("rc", "ChatCommand")
     self:RegisterChatCommand("raidcaller", "ChatCommand")
-
-    -- Setup the minimap icon
-    self:SetupMinimapIcon()
     
-    -- Register for game events
+    self:Print("RaidCaller Initialized.")
+end
+
+function RC:OnEnable()
+    self:Print("RaidCaller Enabled.")
+    
+    -- Register for events
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     
-    -- Hook other addons if needed
-    if self.Config and self.Config:IsAutomaticMode() and IsAddOnLoaded("BigWigs") then
+    if self.Config:IsAutomaticMode() and IsAddOnLoaded("BigWigs") then
         self:HookBigWigs()
     end
 
-    self:Print("RaidCaller Fully Enabled and Ready.")
+    -- Setup minimap icon
+    self:SetupMinimapIcon()
 end
 
 function RC:HookBigWigs()
@@ -71,31 +77,36 @@ function RC:UnhookBigWigs()
 end
 
 function RC:ChatCommand(input)
-    if not self.UI then return end -- Safety check
+    if not self.UI then return end
     if type(input) ~= "string" then return end
+
+    input = string.gsub(input, "^%s*(.-)%s*$", "%1")
 
     if input == "" then
         self.UI:Toggle()
         return
     end
     
-    -- IMPROVEMENT: Use pcall to safely parse input. If it fails, default to toggling the UI.
-    local ok, command, arg = pcall(string.match, input, "^(%S+)%s*(.-)$")
-    if not ok or not command then
-        self.UI:Toggle()
-        return
+    local command, argStr = string.match(input, "^(%S+)%s*(.*)$")
+    if not command then
+        command = input
+        argStr = ""
     end
 
     command = string.lower(command)
 
-    if command == "say" and tonumber(arg) then
-        self:SayPhrase(tonumber(arg))
+    if command == "say" and tonumber(argStr) then
+        self:SayPhrase(tonumber(argStr))
     elseif command == "toggle" then
         self.UI:Toggle()
+    elseif command == "debug" then
+        self.debug = not self.debug
+        self:Print("Debug mode is now: " .. (self.debug and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
     else
-        self:Print("Usage: /rc [toggle|say <#>]")
+        self:Print("Usage: /rc [toggle|debug|say <#>]")
     end
 end
+
 
 function RC:SetupMinimapIcon()
     local LDB = LibStub("LibDBIcon-1.0", true)
@@ -129,6 +140,9 @@ function RC:OnEncounterEnd() if self.BossDetector then self.BossDetector:SetBoss
 function RC:GetCurrentPhrases()
     if not self.BossDetector then return nil end
     local currentRaid, currentBoss = self.BossDetector:GetCurrentRaidAndBoss()
+    
+    self:DebugPrint("GetCurrentPhrases - Raid: " .. tostring(currentRaid or "nil") .. " Boss: " .. tostring(currentBoss or "nil"))
+
     if currentRaid and currentBoss and self.phrases[currentRaid] and self.phrases[currentRaid][currentBoss] then
         return self.phrases[currentRaid][currentBoss].Phrases
     end
@@ -141,7 +155,10 @@ function RC:SayPhrase(index)
         self:Print("No phrase found. Please select a raid and boss in manual mode.")
         return
     end
+    
+    self:DebugPrint("Saying phrase " .. tostring(index) .. ": " .. tostring(phrases[index]))
 
+    -- FIXED: Corrected the typo from 'UnitlsGroupAssistant' to the correct 'UnitIsGroupAssistant'
     if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
         SendChatMessage(phrases[index], "RAID")
     else
@@ -149,13 +166,8 @@ function RC:SayPhrase(index)
     end
 end
 
---
--- !! GLOBAL FUNCTIONS FOR BINDINGS !!
---
-
 -- Global function for the toggle keybind.
 function RaidCaller_Toggle()
-    -- Safely check if the addon and its UI have been loaded.
     if RaidCaller and RaidCaller.addon and RaidCaller.addon.UI then
         RaidCaller.addon.UI:Toggle()
     end
@@ -163,7 +175,6 @@ end
 
 -- Global function for the "say" keybinds.
 function RaidCaller_Say(index)
-    -- Safely check if the addon has been loaded.
     if RaidCaller and RaidCaller.addon then
         RaidCaller.addon:SayPhrase(index)
     end
