@@ -1,4 +1,4 @@
-
+print("|cff00ff00[DEBUG] STO CARICANDO LibDBIcon-1.0.lua ORA!|r")
 -----------------------------------------------------------------------
 -- LibDBIcon-1.0
 --
