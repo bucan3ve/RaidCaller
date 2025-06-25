@@ -1,5 +1,5 @@
 -- UI.lua
--- Creates and manages the user interface. Rewritten for HYPER-ROBUSTNESS.
+-- Creates and manages the user interface. Rewritten for stability and bug fixes.
 
 RaidCaller = RaidCaller or {}
 
@@ -29,7 +29,7 @@ function UIModule:new(addon, config)
         self.mainFrame = CreateWidget("Frame")
         if not self.mainFrame then return end -- Critical failure, cannot continue
 
-        self.mainFrame:SetTitle("RaidCaller v4.2")
+        self.mainFrame:SetTitle("RaidCaller v5.0")
         self.mainFrame:SetLayout("Flow")
         self.mainFrame:SetPoint("CENTER")
         self.mainFrame:SetWidth(400)
@@ -46,12 +46,18 @@ function UIModule:new(addon, config)
             if self.widgets.autoModeCheckbox then
                 self.widgets.autoModeCheckbox:SetLabel("Automatic Mode (requires BigWigs)")
                 self.widgets.autoModeCheckbox:SetValue(self.config:IsAutomaticMode())
-                -- ======== CHECKBOX LOGIC FIXED ========
-                self.widgets.autoModeCheckbox:SetCallback("OnValueChanged", function(_, _, isChecked)
-                    self.config:SetAutomaticMode(isChecked) -- Save the new state
+                -- ======== CHECKBOX LOGIC REWRITTEN FOR STABILITY ========
+                self.widgets.autoModeCheckbox:SetCallback("OnValueChanged", function()
+                    -- Ignore the value from the callback, toggle the saved state directly
+                    local currentState = self.config:IsAutomaticMode()
+                    local newState = not currentState -- Invert the current state
+                    
+                    self.addon:Print(string.format("Checkbox Toggled. State changed from '%s' to '%s'", tostring(currentState), tostring(newState)))
+                    self.config:SetAutomaticMode(newState)
 
-                    if isChecked then
+                    if newState then
                         -- Logic for TURNING ON
+                        self.addon:Print("Activating Automatic Mode...")
                         if IsAddOnLoaded("BigWigs") then
                             self.addon:HookBigWigs()
                             if self.addon.BossDetector then self.addon.BossDetector:UpdateZone() end
@@ -60,6 +66,7 @@ function UIModule:new(addon, config)
                         end
                     else
                         -- Logic for TURNING OFF
+                        self.addon:Print("Deactivating Automatic Mode, returning to Manual.")
                         self.addon:UnhookBigWigs()
                     end
                     
@@ -71,10 +78,16 @@ function UIModule:new(addon, config)
             self.widgets.raidDropdown = CreateWidget("Dropdown")
             if self.widgets.raidDropdown then
                 self.widgets.raidDropdown:SetLabel("Select Raid")
-                self.widgets.raidDropdown:SetCallback("OnValueChanged", function(_, _, value)
+                -- ======== DROPDOWN DEBUGGING ADDED ========
+                self.widgets.raidDropdown:SetCallback("OnValueChanged", function(_, event, value)
+                    self.addon:Print(string.format("Raid Dropdown Changed. Event: %s, Value: %s", tostring(event), tostring(value)))
+                    
                     self.config:SetManualRaid(value)
                     self.config:SetManualBoss(nil)
+                    
+                    self.addon:Print("Config updated. Calling UI:Update()...")
                     self:Update()
+                    self.addon:Print("UI:Update() finished.")
                 end)
                 controlsGroup:AddChild(self.widgets.raidDropdown)
             end
