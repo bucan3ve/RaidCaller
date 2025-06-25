@@ -7,6 +7,7 @@ local addonName = "RaidCaller"
 local RC = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 RaidCaller.addon = RC
 
+
 -- PHASE 1: Initialize non-UI, non-event systems. This runs very early.
 function RC:OnInitialize()
     self:Print("RaidCaller Initializing (Phase 1: Core Systems)...")
@@ -21,7 +22,7 @@ function RC:OnInitialize()
 
     -- Load phrase data
     self.phrases = RaidCaller.PhraseData or {}
-    RaidCaller.PhraseData = nil
+    RaidCaller.PhraseData = nil -- Clear global reference after loading
     
     self:Print("Core Systems Initialized.")
 end
@@ -78,8 +79,12 @@ function RC:ChatCommand(input)
         return
     end
     
+    -- IMPROVEMENT: Use pcall to safely parse input. If it fails, default to toggling the UI.
     local ok, command, arg = pcall(string.match, input, "^(%S+)%s*(.-)$")
-    if not ok or not command then return end
+    if not ok or not command then
+        self.UI:Toggle()
+        return
+    end
 
     command = string.lower(command)
 
@@ -141,5 +146,25 @@ function RC:SayPhrase(index)
         SendChatMessage(phrases[index], "RAID")
     else
         self:Print("You must be a raid leader or assistant to make calls.")
+    end
+end
+
+--
+-- !! GLOBAL FUNCTIONS FOR BINDINGS !!
+--
+
+-- Global function for the toggle keybind.
+function RaidCaller_Toggle()
+    -- Safely check if the addon and its UI have been loaded.
+    if RaidCaller and RaidCaller.addon and RaidCaller.addon.UI then
+        RaidCaller.addon.UI:Toggle()
+    end
+end
+
+-- Global function for the "say" keybinds.
+function RaidCaller_Say(index)
+    -- Safely check if the addon has been loaded.
+    if RaidCaller and RaidCaller.addon then
+        RaidCaller.addon:SayPhrase(index)
     end
 end
