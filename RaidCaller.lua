@@ -1,5 +1,5 @@
 -- RaidCaller.lua
--- Main addon object. Restored to original, stable structure.
+-- Main addon object. Refactored for two-window UI and LDB support.
 
 RaidCaller = RaidCaller or {}
 
@@ -8,6 +8,7 @@ local RC = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEve
 RaidCaller.addon = RC
 
 RC.debug = false
+RC.ldb = nil -- Placeholder for our LDB object
 
 function RC:DebugPrint(message)
     if not self.debug then return end
@@ -19,13 +20,12 @@ end
 function RC:OnInitialize()
     self:Print("RaidCaller Initializing...")
     
-    -- Database
     local defaults = {
         profile = {
             isAutomatic = false,
             manualRaid = nil,
             manualBoss = nil,
-            sendAsWarning = false, -- ADDED: New setting for raid warnings
+            sendAsWarning = false,
             minimap = {
                 hide = false,
             }
@@ -33,15 +33,13 @@ function RC:OnInitialize()
     }
     self.db = LibStub("AceDB-3.0"):New("RaidCallerDB", defaults, true)
 
-    -- Modules
     self.phrases = RaidCaller.PhraseData or {}
-    RaidCaller.PhraseData = nil -- Clear global reference
+    RaidCaller.PhraseData = nil 
 
     self.Config = RaidCaller.ConfigModule:new(self.db)
     self.BossDetector = RaidCaller.BossDetectorModule:new(self)
     self.UI = RaidCaller.UIModule:new(self)
     
-    -- Slash commands
     self:RegisterChatCommand("rc", "ChatCommand")
     self:RegisterChatCommand("raidcaller", "ChatCommand")
     
@@ -51,16 +49,14 @@ end
 function RC:OnEnable()
     self:Print("RaidCaller Enabled.")
     
-    -- Register for events
-    self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "UpdateLDBText")
     self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     
     if self.Config:IsAutomaticMode() and IsAddOnLoaded("BigWigs") then
         self:HookBigWigs()
     end
 
-    -- Setup minimap icon
-    self:SetupMinimapIcon()
+    self:SetupLDB()
 end
 
 function RC:HookBigWigs()
@@ -83,7 +79,7 @@ function RC:ChatCommand(input)
     input = string.gsub(input, "^%s*(.-)%s*$", "%1")
 
     if input == "" then
-        self.UI:Toggle()
+        self.UI:ToggleSettings()
         return
     end
     
@@ -97,45 +93,77 @@ function RC:ChatCommand(input)
 
     if command == "say" and tonumber(argStr) then
         self:SayPhrase(tonumber(argStr))
-    elseif command == "toggle" then
-        self.UI:Toggle()
+    elseif command == "toggle" or command == "settings" then
+        self.UI:ToggleSettings()
+    elseif command == "phrases" then
+        self.UI:TogglePhrases()
     elseif command == "debug" then
         self.debug = not self.debug
         self:Print("Debug mode is now: " .. (self.debug and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
     else
-        self:Print("Usage: /rc [toggle|debug|say <#>]")
+        self:Print("Usage: /rc [settings|phrases|debug|say <#>]")
     end
 end
 
+function RC:UpdateLDBText()
+    if not self.ldb then return end
 
-function RC:SetupMinimapIcon()
-    local LDB = LibStub("LibDBIcon-1.0", true)
-    if not LDB then
-        self:Print("|cffff8800Warning: LibDBIcon-1.0 library not found. Minimap icon disabled.|r")
+    local text
+    if self.Config:IsAutomaticMode() then
+        local _, boss = self.BossDetector:GetCurrentRaidAndBoss()
+        if boss then
+            text = "RaidCaller: " .. boss
+        else
+            text = "RaidCaller (Auto)"
+        end
+    else
+        local _, boss = self.BossDetector:GetCurrentRaidAndBoss()
+        if boss then
+            text = "RaidCaller: " .. boss
+        else
+            text = "RaidCaller (Manual)"
+        end
+    end
+    self.ldb.text = text
+end
+
+function RC:SetupLDB()
+    local LDB = LibStub("LibDataBroker-1.1", true)
+    local LDBIcon = LibStub("LibDBIcon-1.0", true)
+
+    if not LDB or not LDBIcon then
+        self:Print("|cffff8800Warning: LDB or LDBIcon library not found. Minimap icon disabled.|r")
         return
     end
-    
-    local uiObject = self.UI
-    if not uiObject then
-        self:Print("|cffff0000Error: UI object not found when setting up minimap icon.|r")
-        return
-    end
 
-    LDB:Register("RaidCaller", {
+    self.ldb = LDB:NewDataObject("RaidCaller", {
+        type = "launcher",
+        label = "RaidCaller",
         icon = "Interface\\Icons\\Spell_Holy_WordFortitude",
-        tooltip = "RaidCaller",
-        onclick = function(_, button)
+        
+        OnTooltipShow = function(tooltip)
+            tooltip:AddLine("RaidCaller")
+            tooltip:AddLine("Left-click to toggle Settings.")
+            tooltip:AddLine("Right-click for options.")
+        end,
+
+        OnClick = function(_, button)
             if button == "LeftButton" then
-                uiObject:Toggle()
+                self.UI:ToggleSettings()
+            elseif button == "RightButton" then
+                self:Print("Right-click options are configured in the main UI window (/rc).")
             end
         end
-    }, self.db.profile.minimap)
+    })
+
+    LDBIcon:Register("RaidCaller", self.ldb, self.db.profile.minimap)
+    self:UpdateLDBText()
 end
 
-function RC:PLAYER_ENTERING_WORLD() if self.BossDetector then self.BossDetector:UpdateZone() end end
-function RC:ZONE_CHANGED_NEW_AREA() if self.BossDetector then self.BossDetector:UpdateZone() end end
-function RC:OnEncounterStart(_, _, _, _, bossName) if self.BossDetector then self.BossDetector:SetBoss(bossName) end end
-function RC:OnEncounterEnd() if self.BossDetector then self.BossDetector:SetBoss(nil) end end
+function RC:PLAYER_ENTERING_WORLD() if self.BossDetector then self.BossDetector:UpdateZone(); self:UpdateLDBText() end end
+function RC:ZONE_CHANGED_NEW_AREA() if self.BossDetector then self.BossDetector:UpdateZone(); self:UpdateLDBText() end end
+function RC:OnEncounterStart(_, _, _, _, bossName) if self.BossDetector then self.BossDetector:SetBoss(bossName); self:UpdateLDBText() end end
+function RC:OnEncounterEnd() if self.BossDetector then self.BossDetector:SetBoss(nil); self:UpdateLDBText() end end
 
 function RC:GetCurrentPhrases()
     if not self.BossDetector then return nil end
@@ -143,11 +171,24 @@ function RC:GetCurrentPhrases()
     
     self:DebugPrint("GetCurrentPhrases - Raid: " .. tostring(currentRaid or "nil") .. " Boss: " .. tostring(currentBoss or "nil"))
 
-    if currentRaid and currentBoss and self.phrases[currentRaid] and self.phrases[currentRaid][currentBoss] then
-        return self.phrases[currentRaid][currentBoss].Phrases
+    if not currentRaid or not currentBoss then
+        self:DebugPrint("Lookup failed: Raid or Boss is nil.")
+        return nil
     end
-    return nil
+
+    if not self.phrases[currentRaid] then
+        self:DebugPrint("Lookup failed: Raid key '" .. tostring(currentRaid) .. "' not found in phrases table.")
+        return nil
+    end
+    
+    if not self.phrases[currentRaid][currentBoss] then
+        self:DebugPrint("Lookup failed: Boss key '" .. tostring(currentBoss) .. "' not found in raid '" .. tostring(currentRaid) .. "'.")
+        return nil
+    end
+
+    return self.phrases[currentRaid][currentBoss].Phrases
 end
+
 
 function RC:SayPhrase(index)
     local phrases = self:GetCurrentPhrases()
@@ -156,7 +197,6 @@ function RC:SayPhrase(index)
         return
     end
     
-    -- MODIFIED: Check config for which channel to use
     local channel = "RAID"
     if self.Config:IsSendAsWarning() then
         channel = "RAID_WARNING"
@@ -171,14 +211,12 @@ function RC:SayPhrase(index)
     end
 end
 
--- Global function for the toggle keybind.
 function RaidCaller_Toggle()
     if RaidCaller and RaidCaller.addon and RaidCaller.addon.UI then
-        RaidCaller.addon.UI:Toggle()
+        RaidCaller.addon.UI:ToggleSettings()
     end
 end
 
--- Global function for the "say" keybinds.
 function RaidCaller_Say(index)
     if RaidCaller and RaidCaller.addon then
         RaidCaller.addon:SayPhrase(index)
